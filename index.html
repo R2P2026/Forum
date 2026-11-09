@@ -1,0 +1,344 @@
+<title>Календар зустрічей</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500&display=swap">
+<style>
+/* Layout: одна вузька колонка для телефону. Угорі заголовок і ім'я, нижче форма, далі список за часом. */
+:root{
+  --bg:#F2F4F8;
+  --surface:#FFFFFF;
+  --ink:#141A24;
+  --muted:#5A6577;
+  --line:#DCE1EA;
+  --accent:#2646D6;
+  --accent-ink:#FFFFFF;
+  --chip:#FFE08A;
+  --chip-ink:#4A3700;
+  --danger:#B3261E;
+  --font-display:"Unbounded","Onest",system-ui,sans-serif;
+  --font-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E131A;--surface:#171D27;--ink:#EBEFF6;--muted:#9AA5B6;--line:#2A3342;
+    --accent:#8197FF;--accent-ink:#0E131A;--chip:#4A3D12;--chip-ink:#FFE08A;--danger:#FF8F86;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E131A;--surface:#171D27;--ink:#EBEFF6;--muted:#9AA5B6;--line:#2A3342;
+  --accent:#8197FF;--accent-ink:#0E131A;--chip:#4A3D12;--chip-ink:#FFE08A;--danger:#FF8F86;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;
+  padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.app{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--font-display);font-weight:500;font-size:22px;line-height:1.2;margin:0;text-wrap:balance}
+h2{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
+header{display:flex;flex-direction:column;gap:12px}
+.count{color:var(--muted);font-size:14px;margin:0}
+label{display:block;font-size:14px;font-weight:500;margin-bottom:4px}
+input,textarea{
+  width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;
+}
+textarea{resize:vertical;min-height:64px}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.form{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.two{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px}
+.two>div{min-width:0}
+.err{margin:0;min-height:20px;font-size:14px;color:var(--danger)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-weight:500;min-height:44px;padding:0 16px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);flex:1}
+button.link{min-height:36px;padding:0 8px;border:0;background:transparent;color:var(--accent);font-size:14px}
+button.link.danger{color:var(--danger)}
+.list{display:flex;flex-direction:column;gap:8px;padding:0;margin:0;list-style:none}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;gap:12px}
+.time{flex:none;align-self:flex-start;background:var(--chip);color:var(--chip-ink);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;border-radius:6px;padding:2px 8px}
+.body{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}
+.who{font-weight:600;overflow-wrap:anywhere}
+.place,.cm{font-size:14px;color:var(--muted);overflow-wrap:anywhere;margin:0}
+.row-actions{display:flex;gap:4px;margin:4px 0 0 -8px;flex-wrap:wrap}
+.item.example{border-style:dashed;background:transparent}
+.tag{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.empty-title{font-weight:600;margin:0}
+.note{font-size:13px;color:var(--muted);margin:0}
+.warn{font-size:14px;margin:0;padding:10px 12px;border-radius:8px;border:1px solid var(--danger);color:var(--danger)}
+.copybox{display:flex;flex-direction:column;gap:8px}
+@media (prefers-reduced-motion:no-preference){button{transition:background-color .15s}}
+</style>
+
+<div class="app">
+  <header>
+    <h1>Мої зустрічі</h1>
+    <div>
+      <label for="name">Ваше ім'я та організація</label>
+      <input id="name" type="text" autocomplete="off" placeholder="Олена, ГО «Крок»">
+    </div>
+    <p class="count" id="count"></p>
+  </header>
+
+  <form class="form" id="form" novalidate>
+    <h2 id="form-title">Нова зустріч</h2>
+    <div>
+      <label for="who">З ким домовились</label>
+      <input id="who" type="text" autocomplete="off" placeholder="Андрій, Фонд «Відновлення»">
+    </div>
+    <div class="two">
+      <div>
+        <label for="time">Час</label>
+        <input id="time" type="time">
+      </div>
+      <div>
+        <label for="place">Місце</label>
+        <input id="place" type="text" autocomplete="off" placeholder="Кава-зона, 2 поверх">
+      </div>
+    </div>
+    <div>
+      <label for="comment">Коментар</label>
+      <textarea id="comment" placeholder="Про що говорили, контакти, що пообіцяли"></textarea>
+    </div>
+    <p class="err" id="err" role="alert" aria-live="polite"></p>
+    <div class="actions">
+      <button type="submit" class="primary" id="submit">Додати зустріч</button>
+      <button type="button" id="cancel" hidden>Скасувати</button>
+    </div>
+  </form>
+
+  <section style="display:flex;flex-direction:column;gap:8px" aria-labelledby="list-title">
+    <h2 id="list-title">За часом</h2>
+    <ul class="list" id="list"></ul>
+  </section>
+
+  <p class="warn" id="warn" hidden>Браузер не зберігає дані на цьому пристрої. Скопіюйте список, перш ніж закривати сторінку.</p>
+
+  <div class="copybox">
+    <button type="button" id="copy">Скопіювати список</button>
+    <textarea id="fallback" readonly hidden aria-label="Список зустрічей для копіювання"></textarea>
+    <p class="note" id="copied" aria-live="polite">Список зберігається лише на цьому телефоні. Інші учасники його не бачать.</p>
+  </div>
+</div>
+
+<script>
+var KEY = 'forum-meetings-v1';
+var state = { name: '', items: [] };
+var editingId = null;
+var pendingDelete = null;
+var storageOk = true;
+
+var $ = function (id) { return document.getElementById(id); };
+
+function load() {
+  try {
+    localStorage.setItem(KEY + '-t', '1');
+    localStorage.removeItem(KEY + '-t');
+  } catch (e) { storageOk = false; }
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var p = JSON.parse(raw);
+      if (p && Array.isArray(p.items)) {
+        state.items = p.items.filter(function (i) { return i && typeof i.who === 'string'; });
+        state.name = typeof p.name === 'string' ? p.name : '';
+      }
+    }
+  } catch (e) {}
+}
+
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    storageOk = true;
+  } catch (e) { storageOk = false; }
+  $('warn').hidden = storageOk;
+}
+
+function plural(n) {
+  var a = n % 10, b = n % 100;
+  if (a === 1 && b !== 11) return n + ' зустріч';
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return n + ' зустрічі';
+  return n + ' зустрічей';
+}
+
+function sorted() {
+  return state.items.slice().sort(function (x, y) {
+    if (x.time === y.time) return (x.id < y.id ? -1 : 1);
+    return x.time < y.time ? -1 : 1;
+  });
+}
+
+function el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function render() {
+  var list = $('list');
+  list.textContent = '';
+  var items = sorted();
+  $('count').textContent = items.length ? plural(items.length) + ' за сьогодні' : '';
+
+  if (!items.length) {
+    var ex = el('li', 'item example');
+    ex.appendChild(el('span', 'time', '14:30'));
+    var b = el('div', 'body');
+    b.appendChild(el('span', 'tag', 'Приклад'));
+    b.appendChild(el('span', 'who', 'Андрій, Фонд «Відновлення»'));
+    b.appendChild(el('p', 'place', 'Кава-зона, 2 поверх'));
+    b.appendChild(el('p', 'cm', 'Обговорити спільну заявку. Написати йому після форуму.'));
+    ex.appendChild(b);
+    list.appendChild(ex);
+    var hint = el('li', null);
+    hint.appendChild(el('p', 'empty-title', 'Тут зʼявиться ваш календар'));
+    hint.appendChild(el('p', 'note', 'Домовтеся з учасником про зустріч і додайте її у формі вище.'));
+    list.appendChild(hint);
+    return;
+  }
+
+  items.forEach(function (i) {
+    var li = el('li', 'item');
+    li.appendChild(el('span', 'time', i.time));
+    var body = el('div', 'body');
+    body.appendChild(el('span', 'who', i.who));
+    if (i.place) body.appendChild(el('p', 'place', i.place));
+    if (i.comment) body.appendChild(el('p', 'cm', i.comment));
+    var acts = el('div', 'row-actions');
+    var edit = el('button', 'link', 'Змінити');
+    edit.type = 'button';
+    edit.addEventListener('click', function () { startEdit(i.id); });
+    var del = el('button', 'link danger', pendingDelete === i.id ? 'Точно видалити?' : 'Видалити');
+    del.type = 'button';
+    del.addEventListener('click', function () {
+      if (pendingDelete === i.id) {
+        state.items = state.items.filter(function (x) { return x.id !== i.id; });
+        pendingDelete = null;
+        if (editingId === i.id) resetForm();
+        save();
+      } else {
+        pendingDelete = i.id;
+      }
+      render();
+    });
+    acts.appendChild(edit);
+    acts.appendChild(del);
+    body.appendChild(acts);
+    li.appendChild(body);
+    list.appendChild(li);
+  });
+}
+
+function resetForm() {
+  editingId = null;
+  $('who').value = '';
+  $('time').value = '';
+  $('place').value = '';
+  $('comment').value = '';
+  $('err').textContent = '';
+  $('form-title').textContent = 'Нова зустріч';
+  $('submit').textContent = 'Додати зустріч';
+  $('cancel').hidden = true;
+}
+
+function startEdit(id) {
+  var it = state.items.filter(function (x) { return x.id === id; })[0];
+  if (!it) return;
+  editingId = id;
+  $('who').value = it.who;
+  $('time').value = it.time;
+  $('place').value = it.place || '';
+  $('comment').value = it.comment || '';
+  $('err').textContent = '';
+  $('form-title').textContent = 'Зміна зустрічі';
+  $('submit').textContent = 'Зберегти зміни';
+  $('cancel').hidden = false;
+  $('who').focus();
+  $('form').scrollIntoView({ block: 'start' });
+}
+
+$('form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var who = $('who').value.trim();
+  var time = $('time').value;
+  if (!who) { $('err').textContent = 'Вкажіть, з ким ви домовились.'; $('who').focus(); return; }
+  if (!time) { $('err').textContent = 'Вкажіть час зустрічі.'; $('time').focus(); return; }
+  var data = { who: who, time: time, place: $('place').value.trim(), comment: $('comment').value.trim() };
+  if (editingId) {
+    state.items = state.items.map(function (x) {
+      return x.id === editingId ? { id: x.id, who: data.who, time: data.time, place: data.place, comment: data.comment } : x;
+    });
+  } else {
+    data.id = String(Date.now()) + Math.random().toString(36).slice(2, 6);
+    state.items.push(data);
+  }
+  pendingDelete = null;
+  resetForm();
+  save();
+  render();
+  $('who').focus();
+});
+
+$('cancel').addEventListener('click', resetForm);
+
+['who', 'time', 'place', 'comment'].forEach(function (id) {
+  $(id).addEventListener('input', function () { $('err').textContent = ''; });
+});
+
+var nameTimer = null;
+$('name').addEventListener('input', function () {
+  state.name = $('name').value;
+  clearTimeout(nameTimer);
+  nameTimer = setTimeout(save, 400);
+});
+
+function listAsText() {
+  var lines = [];
+  if (state.name.trim()) lines.push(state.name.trim());
+  sorted().forEach(function (i) {
+    var parts = [i.time, i.who];
+    if (i.place) parts.push(i.place);
+    if (i.comment) parts.push(i.comment);
+    lines.push(parts.join(' · '));
+  });
+  return lines.join('\n');
+}
+
+$('copy').addEventListener('click', function () {
+  var text = listAsText();
+  var note = $('copied');
+  if (!sorted().length) { note.textContent = 'Список порожній. Спочатку додайте зустріч.'; return; }
+  var fb = $('fallback');
+  function manual() {
+    fb.value = text;
+    fb.hidden = false;
+    fb.select();
+    note.textContent = 'Виділіть текст і скопіюйте його вручну.';
+  }
+  try {
+    navigator.clipboard.writeText(text).then(function () {
+      fb.hidden = true;
+      note.textContent = 'Список скопійовано.';
+    }, manual);
+  } catch (e) { manual(); }
+});
+
+document.addEventListener('click', function (e) {
+  if (pendingDelete && !(e.target.className || '').toString().includes('danger')) {
+    pendingDelete = null;
+    render();
+  }
+});
+
+load();
+$('name').value = state.name;
+$('warn').hidden = storageOk;
+render();
+</script>
